@@ -14,6 +14,7 @@ contract AuctionVickrey is Ownable {
         uint256 _endTime
     );
     event userReceivedRefund(address userAddress, uint256 funds);
+    event auctionEnded(uint256 _auctionId);
 
     error auctionAlreadyExist();
     error incorrectTimeLine();
@@ -25,6 +26,8 @@ contract AuctionVickrey is Ownable {
     error refundFailed();
     error auctionInProgress();
     error auctionIsNotExist();
+    error userAlreadyMadeBid();
+    error revealPhaseNotYet();
 
     struct Auction {
         //@notice user's address => hash of user's bid (keccak256(ammount, secretPhrase))
@@ -33,13 +36,19 @@ contract AuctionVickrey is Ownable {
         mapping(address => uint256) bids;
         //@notice user's address => total user sended funds
         mapping(address => uint256) userFunds;
+        //@notice is user participate in auction
+        mapping(address => bool) participation;
+
         address currentWinner;
+
         uint256 startTime;
         uint256 revealTime;
         uint256 endTime;
         uint256 maxBid;
         uint256 preMaxBid;
+
         bool isExist;
+        bool isEnded;
     }
 
     mapping(uint256 => Auction) internal auctions;
@@ -69,6 +78,8 @@ contract AuctionVickrey is Ownable {
         require(auctionInstance.isExist == true, auctionIsntExist());
         require(block.timestamp < auctionInstance.endTime, auctionIsEnded());
         require(block.timestamp < auctionInstance.revealTime,auctionIsOnRevealPhase());
+        require(!auctionInstance.participation[msg.sender], userAlreadyMadeBid());
+        auctionInstance.participation[msg.sender] = true;
         auctionInstance.hashedBids[msg.sender] = hashedBid;
         auctionInstance.userFunds[msg.sender] = msg.value;
     }
@@ -79,9 +90,10 @@ contract AuctionVickrey is Ownable {
         string calldata secretPhrase
     ) external {
         Auction storage auctionInstance = auctions[_auctionId];
+        require(block.timestamp > auctionInstance.revealTime, revealPhaseNotYet());
         require(block.timestamp < auctionInstance.endTime, auctionIsEnded());
         require(auctionInstance.hashedBids[msg.sender] == keccak256(abi.encodePacked(bidAmmount, secretPhrase)), invalidHashedBid());
-        require(auctionInstance.userFunds[msg.sender] >= bidAmmount,notEnoughFunds());
+        require(auctionInstance.userFunds[msg.sender] >= bidAmmount, notEnoughFunds());
         auctionInstance.bids[msg.sender] = bidAmmount;
         if (bidAmmount > auctionInstance.maxBid) {
             auctionInstance.maxBid = bidAmmount;
@@ -114,5 +126,15 @@ contract AuctionVickrey is Ownable {
         Auction storage auctionInstance = auctions[_auctionId];
         require(block.timestamp > auctionInstance.endTime, auctionInProgress());
         return auctionInstance.currentWinner;
+    }
+
+    function isEnded(uint256 _auctionId) external returns(bool) {
+        Auction storage auctionInstance = auctions[_auctionId];
+        require(block.timestamp > auctionInstance.endTime, auctionInProgress());
+        auctionInstance.isEnded = true;
+        emit auctionEnded(
+            _auctionId
+        );
+        return true;
     }
 }

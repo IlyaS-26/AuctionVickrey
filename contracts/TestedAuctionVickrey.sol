@@ -5,8 +5,9 @@ pragma solidity ^0.8.28;
 import "./AuctionVickrey.sol";
 
 contract TestedAuctionVickrey is AuctionVickrey {
-
-    function getAuctionInfoById(uint256 _auctionId)
+    function getAuctionInfoById(
+        uint256 _auctionId
+    )
         external
         view
         returns (
@@ -32,17 +33,26 @@ contract TestedAuctionVickrey is AuctionVickrey {
         );
     }
 
-    function getHashedBids(address userAddress, uint256 _auctionId) view external returns(bytes32) {
+    function getHashedBids(
+        address userAddress,
+        uint256 _auctionId
+    ) external view returns (bytes32) {
         Auction storage auctionInstance = auctions[_auctionId];
         return auctionInstance.hashedBids[userAddress];
     }
 
-    function getBids(address userAddress, uint256 _auctionId) view external returns(uint256) {
+    function getBids(
+        address userAddress,
+        uint256 _auctionId
+    ) external view returns (uint256) {
         Auction storage auctionInstance = auctions[_auctionId];
         return auctionInstance.bids[userAddress];
     }
 
-    function getUserFunds(address userAddress, uint256 _auctionId) view external returns(uint256) {
+    function getUserFunds(
+        address userAddress,
+        uint256 _auctionId
+    ) external view returns (uint256) {
         Auction storage auctionInstance = auctions[_auctionId];
         return auctionInstance.userFunds[userAddress];
     }
