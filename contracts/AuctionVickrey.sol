@@ -28,6 +28,10 @@ contract AuctionVickrey is Ownable {
     error auctionIsNotExist();
     error userAlreadyMadeBid();
     error revealPhaseNotYet();
+    error userNotParticipate();
+    error userNothingToRefund();
+
+    //Добавить withdraw по id аукциона и добавить маппинг
 
     struct Auction {
         //@notice user's address => hash of user's bid (keccak256(ammount, secretPhrase))
@@ -95,34 +99,42 @@ contract AuctionVickrey is Ownable {
         require(auctionInstance.hashedBids[msg.sender] == keccak256(abi.encodePacked(bidAmmount, secretPhrase)), invalidHashedBid());
         require(auctionInstance.userFunds[msg.sender] >= bidAmmount, notEnoughFunds());
         auctionInstance.bids[msg.sender] = bidAmmount;
-        if (bidAmmount > auctionInstance.maxBid) {
-            auctionInstance.maxBid = bidAmmount;
-            auctionInstance.preMaxBid = auctionInstance.maxBid;
-            auctionInstance.currentWinner = msg.sender;
+        if(bidAmmount > auctionInstance.preMaxBid) {
+            if (bidAmmount > auctionInstance.maxBid) {
+                auctionInstance.preMaxBid = auctionInstance.maxBid;
+                auctionInstance.maxBid = bidAmmount;
+                auctionInstance.currentWinner = msg.sender;
+            } else {
+                auctionInstance.preMaxBid = bidAmmount;
+            }
         }
     }
 
     function refundBid(uint256 _auctionId) external {
         Auction storage auctionInstance = auctions[_auctionId];
+        require(auctionInstance.participation[msg.sender], userNotParticipate());
         require(block.timestamp > auctionInstance.endTime, auctionInProgress());
+        require(auctionInstance.userFunds[msg.sender] > 0, userNothingToRefund());
+        uint256 funds = auctionInstance.userFunds[msg.sender];
+        auctionInstance.userFunds[msg.sender] = 0;
         if (msg.sender == auctionInstance.currentWinner) {
-            (bool success, ) = payable(msg.sender).call{ value: auctionInstance.userFunds[msg.sender] - auctionInstance.preMaxBid }("");
+            (bool success, ) = payable(msg.sender).call{ value: funds - auctionInstance.preMaxBid }("");
             require(success, refundFailed());
             emit userReceivedRefund(
                 msg.sender,
-                auctionInstance.userFunds[msg.sender] - auctionInstance.preMaxBid
+                funds - auctionInstance.preMaxBid
             );
         } else {
-            (bool success, ) = payable(msg.sender).call{ value: auctionInstance.userFunds[msg.sender] }("");
+            (bool success, ) = payable(msg.sender).call{ value: funds }("");
             require(success, refundFailed());
             emit userReceivedRefund(
                 msg.sender,
-                auctionInstance.userFunds[msg.sender]
+                funds
             );
         }
     }
 
-    function getWinner(uint256 _auctionId) external view returns (address) {
+    function getWinner(uint256 _auctionId) external view returns(address) {
         Auction storage auctionInstance = auctions[_auctionId];
         require(block.timestamp > auctionInstance.endTime, auctionInProgress());
         return auctionInstance.currentWinner;

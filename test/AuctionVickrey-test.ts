@@ -1,6 +1,6 @@
 import { network } from "hardhat";
 import { loadFixture, ethers, expect } from "./setup";
-import { keccak256, solidityPacked, parseEther } from "ethers";
+import { keccak256, solidityPacked, parseEther, ContractTransactionResponse } from "ethers";
 
 describe("Tests for Vickrey auction", function () {
     async function deploy() {
@@ -61,12 +61,76 @@ describe("Tests for Vickrey auction", function () {
         expect(await auction.getBids(user2.address, 0)).to.equal(parseEther("1"));
         expect(await auction.getBids(user3.address, 0)).to.equal(parseEther("2"));
         expect(await auction.getBids(user4.address, 0)).to.equal(parseEther("0.0003"));
-
     });
+
+    it("Should refund same funds as expected", async function () {
+        const { deployer, user1, user2, user3, user4, auction } = await loadFixture(deploy);
+        await auction.connect(deployer).createAuction(0, 90, 360);
+
+        const user1InitialBalance = await ethers.provider.getBalance(user1.address);
+        const user2InitialBalance = await ethers.provider.getBalance(user2.address);
+        const user3InitialBalance = await ethers.provider.getBalance(user3.address);
+        const user4InitialBalance = await ethers.provider.getBalance(user4.address);
+
+        const bidByUser1 = keccak256(solidityPacked(["uint256", "string"], [parseEther("0.00076"), "Wind"]));
+        const bidByUser2 = keccak256(solidityPacked(["uint256", "string"], [parseEther("6"), "Leaf"]));
+        const bidByUser3 = keccak256(solidityPacked(["uint256", "string"], [parseEther("0.015"), "Tree"]));
+        const bidByUser4 = keccak256(solidityPacked(["uint256", "string"], [parseEther("1.54"), "Moss"]));
+
+        const tx_user1_setBid = await auction.connect(user1).setBid(0, bidByUser1, { value: parseEther("1") });
+        const tx_user2_setBid = await auction.connect(user2).setBid(0, bidByUser2, { value: parseEther("10") });
+        const tx_user3_setBid = await auction.connect(user3).setBid(0, bidByUser3, { value: parseEther("0.1") });
+        const tx_user4_setBid = await auction.connect(user4).setBid(0, bidByUser4, { value: parseEther("3") });
+
+        let user1_gasCost = await gasCost(tx_user1_setBid);
+        let user2_gasCost = await gasCost(tx_user2_setBid);
+        let user3_gasCost = await gasCost(tx_user3_setBid);
+        let user4_gasCost = await gasCost(tx_user4_setBid);
+
+        await passTime(89);
+
+        const tx_user1_revealBid = await auction.connect(user1).revealBid(0, parseEther("0.00076"), "Wind");
+        const tx_user2_revealBid = await auction.connect(user2).revealBid(0, parseEther("6"), "Leaf");
+        const tx_user3_revealBid = await auction.connect(user3).revealBid(0, parseEther("0.015"), "Tree");
+        const tx_user4_revealBid = await auction.connect(user4).revealBid(0, parseEther("1.54"), "Moss");
+
+        user1_gasCost += await gasCost(tx_user1_revealBid);
+        user2_gasCost += await gasCost(tx_user2_revealBid);
+        user3_gasCost += await gasCost(tx_user3_revealBid);
+        user4_gasCost += await gasCost(tx_user4_revealBid);
+
+        await passTime(269);
+
+        const tx_user1_refundBid = await auction.connect(user1).refundBid(0);
+        const tx_user2_refundBid = await auction.connect(user2).refundBid(0);
+        const tx_user3_refundBid = await auction.connect(user3).refundBid(0);
+        const tx_user4_refundbid = await auction.connect(user4).refundBid(0);
+
+        user1_gasCost += await gasCost(tx_user1_refundBid);
+        user2_gasCost += await gasCost(tx_user2_refundBid);
+        user3_gasCost += await gasCost(tx_user3_refundBid);
+        user4_gasCost += await gasCost(tx_user4_refundbid);
+
+        const user1FinalBalance = await ethers.provider.getBalance(user1.address);
+        const user2FinalBalance = await ethers.provider.getBalance(user2.address);
+        const user3FinalBalance = await ethers.provider.getBalance(user3.address);
+        const user4FinalBalance = await ethers.provider.getBalance(user4.address);
+
+        expect(user1FinalBalance).to.equal(user1InitialBalance - user1_gasCost);
+        expect(user2FinalBalance).to.equal(user2InitialBalance - parseEther("1.54") - user2_gasCost);
+        expect(user3FinalBalance).to.equal(user3InitialBalance - user3_gasCost);
+        expect(user4FinalBalance).to.equal(user4InitialBalance - user4_gasCost);
+    })
+
+    async function gasCost(tx: ContractTransactionResponse) {
+        const receipt = await tx.wait();
+        const gasUsed = receipt?.gasUsed;
+        const gasPrice = tx.gasPrice;
+        return gasUsed! * gasPrice;
+    }
 
     async function passTime(time: number) {
         await network.provider.send("evm_increaseTime", [time]);
         await network.provider.send("evm_mine");
     }
-
 });
