@@ -30,8 +30,7 @@ contract AuctionVickrey is Ownable {
     error revealPhaseNotYet();
     error userNotParticipate();
     error userNothingToRefund();
-
-    //Добавить withdraw по id аукциона и добавить маппинг
+    error withdrawFailed();
 
     struct Auction {
         //@notice user's address => hash of user's bid (keccak256(ammount, secretPhrase))
@@ -148,5 +147,10 @@ contract AuctionVickrey is Ownable {
             _auctionId
         );
         return true;
+    }
+
+    function withdraw() onlyOwner external {
+        (bool success, ) = payable(owner()).call{ value: address(this).balance }("");
+        require(success, withdrawFailed());
     }
 }
