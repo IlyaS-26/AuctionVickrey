@@ -5,6 +5,7 @@ pragma solidity ^0.8.28;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract AuctionVickrey is Ownable {
+    
     constructor() Ownable(msg.sender) {}
 
     event auctionIsCreated(
@@ -76,7 +77,10 @@ contract AuctionVickrey is Ownable {
         );
     }
 
-    function setBid(uint256 _auctionId, bytes32 hashedBid) external payable {
+    function setBid(
+        uint256 _auctionId,
+        bytes32 hashedBid
+    ) external payable {
         Auction storage auctionInstance = auctions[_auctionId];
         require(auctionInstance.isExist == true, auctionIsntExist());
         require(block.timestamp < auctionInstance.endTime, auctionIsEnded());
@@ -149,8 +153,10 @@ contract AuctionVickrey is Ownable {
         return true;
     }
 
-    function withdraw() onlyOwner external {
-        (bool success, ) = payable(owner()).call{ value: address(this).balance }("");
+    function withdraw(uint256 _auctionId) onlyOwner external {
+        Auction storage auctionInstance = auctions[_auctionId];
+        require(auctionInstance.isEnded, auctionInProgress());
+        (bool success, ) = payable(owner()).call{ value: auctionInstance.preMaxBid }("");
         require(success, withdrawFailed());
     }
 }
