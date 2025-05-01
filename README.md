@@ -1,6 +1,6 @@
 # AuctionVickrey
 
-[**Deployed (Sepolia):** `0x6C21C4591f1EC1dd67955a02b54814aCD70800F9`](https://sepolia.etherscan.io/address/0x6C21C4591f1EC1dd67955a02b54814aCD70800F9)
+**Deployed (Sepolia):** [0x6C21C4591f1EC1dd67955a02b54814aCD70800F9](https://sepolia.etherscan.io/address/0x6C21C4591f1EC1dd67955a02b54814aCD70800F9)
 
 ---
 
