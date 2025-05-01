@@ -6,7 +6,7 @@
 
 ## Overview
 
-AuctionVickrey implements a sealed-bid, second-price (Vickrey) auction on Ethereum. Bidders submit hidden commitments during a commit phase, reveal their bids during a reveal phase, and the highest bidder wins but pays the second-highest price. This approach incentivizes truthful bidding.
+AuctionVickrey implements a sealed-bid, second-price auction on Ethereum. Bidders submit hidden commitments during a commit phase, reveal their bids during a reveal phase, and the highest bidder wins but pays the second-highest price.
 
 ---
 
@@ -67,30 +67,12 @@ AuctionVickrey implements a sealed-bid, second-price (Vickrey) auction on Ethere
 
 ---
 
-## Security Considerations
-
-- **Reentrancy**  
-  Ensure refund logic zeroes out balances before external calls or uses a reentrancy guard.
-
-- **Timestamp Manipulation**  
-  Be aware that miners control timestamps within small bounds; avoid critical logic hinging on exact seconds.
-
-- **Commit Binding**  
-  Use unambiguous encoding (e.g. include auctionId) to prevent replay or cross-auction collisions.
-
-- **Owner Controls**  
-  Restrict withdrawal until the auction is fully finalized to prevent premature fund drain.
-
----
-
 ## Usage
 
-1. Deploy the contract to Sepolia.  
+1. Deploy the contract.  
 2. Owner calls **create auction** with time windows.  
 3. Bidders perform **commit** during the commit window.  
 4. Bidders perform **reveal** during the reveal window.  
 5. After end, participants call **refund**, and owner calls **withdraw**.
 
 ---
-
-*AuctionVickrey — let your sealed-bid auctions on-chain with confidence.*
